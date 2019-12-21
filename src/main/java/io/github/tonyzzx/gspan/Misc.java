@@ -1,78 +1,107 @@
 package io.github.tonyzzx.gspan;
 
 import java.util.ArrayList;
+import java.util.NavigableMap;
 
 import io.github.tonyzzx.gspan.model.Edge;
+import io.github.tonyzzx.gspan.model.EfficientHistory;
 import io.github.tonyzzx.gspan.model.Graph;
 import io.github.tonyzzx.gspan.model.History;
 import io.github.tonyzzx.gspan.model.Vertex;
 
 public class Misc {
-    public static boolean getForwardRoot(Graph g, Vertex v, ArrayList<Edge> result) {
-        result.clear();
-        for (Edge it : v.edge) {
-            assert (it.to >= 0 && it.to < g.size());
-            if (v.label <= g.get(it.to).label)
-                result.add(it);
-        }
 
-        return !result.isEmpty();
-    }
+	public static boolean getForwardRoot(Graph g, Vertex v, ArrayList<Edge> result) {
+		result.clear();
+		for (Edge it : v.edge) {
+			assert (it.to >= 0 && it.to < g.size());
+			if (v.label <= g.get(it.to).label)
+				result.add(it);
+		}
 
-    public static Edge getBackward(Graph graph, Edge e1, Edge e2, History history) {
-        if (e1 == e2)
-            return null;
+		return !result.isEmpty();
+	}
 
-        assert (e1.from >= 0 && e1.from < graph.size());
-        assert (e1.to >= 0 && e1.to < graph.size());
-        assert (e2.to >= 0 && e2.to < graph.size());
+	// HJ: returns a edge not contained in history, but links e2 to e1
+	public static Edge getBackward(Graph graph, Edge e1, Edge e2, EfficientHistory history,
+			NavigableMap<Integer, Integer> singleVertexLabel, long minSup) {
+		if (e1 == e2)
+			return null;
 
-        for (Edge it : graph.get(e2.to).edge) {
-            if (history.hasEdge(it.id))
-                continue;
+		assert (e1.from >= 0 && e1.from < graph.size());
+		assert (e1.to >= 0 && e1.to < graph.size());
+		assert (e2.to >= 0 && e2.to < graph.size());
 
-            if ((it.to == e1.from) && ((e1.eLabel < it.eLabel)
-                    || (e1.eLabel == it.eLabel) && (graph.get(e1.to).label <= graph.get(e2.to).label))) {
-                return it;
-            }
-        }
+		for (Edge it : graph.get(e2.to).edge) {
+			if (history.hasEdge(it.id))
+				continue;
+			
+			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
+			int toNodeLabel = graph.get(it.to).label;
+			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+//				System.out.println("skip due to low-support value");
+				continue;
+			}
 
-        return null;
-    }
+			if ((it.to == e1.from) && ((e1.eLabel < it.eLabel)
+					|| (e1.eLabel == it.eLabel) && (graph.get(e1.to).label <= graph.get(e2.to).label))) {
+				return it;
+			}
+		}
 
-    public static boolean getForwardPure(Graph graph, Edge e, int minLabel, History history, ArrayList<Edge> result) {
-        result.clear();
+		return null;
+	}
 
-        assert (e.to >= 0 && e.to < graph.size());
+	public static boolean getForwardPure(Graph graph, Edge e, int minLabel, EfficientHistory history,
+			ArrayList<Edge> result, NavigableMap<Integer, Integer> singleVertexLabel, long minSup) {
+		result.clear();
 
-        // Walk all edges leaving from vertex e.to.
-        for (Edge it : graph.get(e.to).edge) {
-            // -e. [e.to] -it. [it.to]
-            assert (it.to >= 0 && it.to < graph.size());
-            if (minLabel > graph.get(it.to).label || history.hasVertex(it.to))
-                continue;
+		assert (e.to >= 0 && e.to < graph.size());
 
-            result.add(it);
-        }
+		// Walk all edges leaving from vertex e.to.
+		for (Edge it : graph.get(e.to).edge) {
+			// -e. [e.to] -it. [it.to]
+			assert (it.to >= 0 && it.to < graph.size());
 
-        return !result.isEmpty();
-    }
+			if (minLabel > graph.get(it.to).label || history.hasVertex(it.to))
+				continue;
 
-    public static boolean getForwardRmPath(Graph graph, Edge e, int minLabel, History history, ArrayList<Edge> result) {
-        result.clear();
-        assert (e.to >= 0 && e.to < graph.size());
-        assert (e.from >= 0 && e.from < graph.size());
-        int toLabel = graph.get(e.to).label;
+			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
+			int toNodeLabel = graph.get(it.to).label;
+			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+//				System.out.println("skip due to low-support value");
+				continue;
+			}
 
-        for (Edge it : graph.get(e.from).edge) {
-            int toLabel2 = graph.get(it.to).label;
-            if (e.to == it.to || minLabel > toLabel2 || history.hasVertex(it.to))
-                continue;
+			result.add(it);
+		}
 
-            if (e.eLabel < it.eLabel || (e.eLabel == it.eLabel && toLabel <= toLabel2))
-                result.add(it);
-        }
+		return !result.isEmpty();
+	}
 
-        return !result.isEmpty();
-    }
+	public static boolean getForwardRmPath(Graph graph, Edge e, int minLabel, EfficientHistory history,
+			ArrayList<Edge> result, NavigableMap<Integer, Integer> singleVertexLabel, long minSup) {
+		result.clear();
+		assert (e.to >= 0 && e.to < graph.size());
+		assert (e.from >= 0 && e.from < graph.size());
+		int toLabel = graph.get(e.to).label;
+
+		for (Edge it : graph.get(e.from).edge) {
+			int toLabel2 = graph.get(it.to).label;
+			if (e.to == it.to || minLabel > toLabel2 || history.hasVertex(it.to))
+				continue;
+
+			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
+			int toNodeLabel = graph.get(it.to).label;
+			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+//				System.out.println("skip due to low-support value");
+				continue;
+			}
+
+			if (e.eLabel < it.eLabel || (e.eLabel == it.eLabel && toLabel <= toLabel2))
+				result.add(it);
+		}
+
+		return !result.isEmpty();
+	}
 }

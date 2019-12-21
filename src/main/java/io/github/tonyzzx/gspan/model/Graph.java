@@ -7,8 +7,19 @@ import java.util.*;
 
 public class Graph extends ArrayList<Vertex> {
     private static final long serialVersionUID = 1L;
-    int edge_size = 0;
+	private static Set<Integer> boringEdges = new HashSet<>(Arrays.asList(1, 4, 7)); // "def" and "recv", "rep"
+	
+	
+	public static List<Integer> boringNodes; // init in Main.main(String[])
+	
+    public int edge_size = 0;
     boolean directed = false;
+    
+    
+    public int ID;
+    
+    public char label;
+    public int quantity = 0; // In this formulation of the problem, each graph represents many clones.
 
     public Graph() {
     }
@@ -55,15 +66,34 @@ public class Graph extends ArrayList<Vertex> {
             Collections.addAll(result, splitRead);
 
             if (!result.isEmpty()) {
-                if (result.get(0).equals("t")) {
-                    if (!this.isEmpty()) { // use as delimiter
+            	if (result.get(0).equals("-")) {
+            		if (!this.isEmpty()) {
                         break;
+                    } else {
+                    	throw new RuntimeException("Unexpected file format");
                     }
+            	} else if (result.get(0).equals("t")) {
+            		
+            		String supposedID = result.get(2);
+            		this.ID = Integer.parseInt(supposedID);
+                    
+                    char label = result.get(3).charAt(0);
+                    // 'U' for unlabeled
+                    // 'M' for misuse
+                    // 'C' for correct
+                    assert label == 'U' || label == 'M' || label == 'C';
+                    this.label = label;
+                    
+                    int howMany = Integer.parseInt(result.get(4));
+                    this.quantity = howMany;
+                    assert this.quantity >= 1;
+                    
                 } else if (result.get(0).equals("v") && result.size() >= 3) {
                     // int id = Integer.parseInt(result.get(1));
                     Vertex vex = new Vertex();
                     vex.label = Integer.parseInt(result.get(2));
                     this.add(vex);
+                    
                 } else if (result.get(0).equals("e") && result.size() >= 4) {
                     int from = Integer.parseInt(result.get(1));
                     int to = Integer.parseInt(result.get(2));
@@ -123,6 +153,42 @@ public class Graph extends ArrayList<Vertex> {
         }
 
         os.flush();
+    }
+    
+    public boolean allEdgesAreBoring() {
+    	if (size() <= 1) { // single node
+    		return false;
+    	}
+    	
+    	boolean result = true;
+    	for (int from = 0; from < size(); ++from) {
+
+            for (Edge it : this.get(from).edge) {
+          
+                if (!Graph.boringEdges.contains(it.eLabel)) {
+                	result = false;
+                }
+            
+            }
+        }
+    	return result;
+    }
+    
+    public boolean allNodesAreBoring() {
+    	if (size() == 1) {
+    		return Graph.boringNodes.contains(this.get(0).label);
+    	}
+
+    	
+    	boolean result = true;
+    	for (int from = 0; from < size(); ++from) {
+
+            if (!Graph.boringNodes.contains(this.get(from).label)) {
+            	result = false;
+            }
+                    
+        }
+    	return result;
     }
 
     public void check() {
