@@ -50,8 +50,15 @@ public class CountingUtils {
 	public static double initialFeatureScore(int A_S0, int A_S1, int B_S0, int B_S1, int U_S0, int U_S1, int A_N,
 			int B_N, double AWeight, double BWeight,  long ID) {
 
-		System.out.println("\t==getting score==");
+//		System.out.println("\t==getting score==");
 //		System.out.print("\tfirst component=" + Math.abs(AWeight * A_S1 - BWeight * B_S1));
+		
+//		if ()
+		if (Double.isInfinite(BWeight) || Double.isInfinite(AWeight)) {
+			
+			
+			return Math.max(A_S1, B_S1);
+		}
 
 		double expectedRatio = AWeight / (AWeight + BWeight);
 		LoggingUtils.logOnce("\t\t\t, expectedRatio=" + expectedRatio);
@@ -79,59 +86,8 @@ public class CountingUtils {
 
 	}
 
-	public static double skewnessScore(int A_S0, int A_S1, int B_S0, int B_S1, int U_S0, int U_S1, int A_N, int B_N,
-			double AWeight, double BWeight, double UWeight) {
-		double expectedRatio = AWeight / (AWeight + BWeight);
-		System.out.println("\t\t, expectedRatio=" + expectedRatio);
-		System.out.println(
-				"\t\t, second component=" + Math.abs(gSpan.skewnessImportance * expectedRatio - UWeight * U_S1));
-		return -Math.abs(gSpan.skewnessImportance * expectedRatio - UWeight * U_S1);
-	}
 
-	public static double improvementCombinedFeatureScore(Set<Integer> combinedACoverage, Set<Integer> combinedBCoverage,
-			Set<Integer> combinedUCoverage, Set<Integer> newFeatureACoverage, Set<Integer> newFeatureBCoverage,
-			Set<Integer> newFeatureUCoverage, int totalA, int totalB, int totalU, double AWeight, double BWeight,
-			double UWeight) {
-
-		int A_S0, B_S0, U_S0, A_S1, B_S1, U_S1;
-
-		A_S0 = totalA - combinedACoverage.size();
-		A_S1 = combinedACoverage.size();
-		B_S0 = totalB - combinedBCoverage.size();
-		B_S1 = combinedBCoverage.size();
-		U_S0 = totalU - combinedUCoverage.size();
-		U_S1 = combinedUCoverage.size();
-
-		Set<Integer> newACoverage = new HashSet<>(combinedACoverage);
-		newACoverage.addAll(newFeatureACoverage);
-
-		Set<Integer> newBCoverage = new HashSet<>(combinedBCoverage);
-		newBCoverage.addAll(newFeatureBCoverage);
-
-		Set<Integer> newUCoverage = new HashSet<>(combinedUCoverage);
-		newUCoverage.addAll(newFeatureUCoverage);
-
-		int new_A_S0, new_B_S0, new_U_S0, new_A_S1, new_B_S1, new_U_S1;
-
-		new_A_S0 = totalA - newACoverage.size();
-		new_A_S1 = newACoverage.size();
-		new_B_S0 = totalB - newBCoverage.size();
-		new_B_S1 = newBCoverage.size();
-		new_U_S0 = totalU - newUCoverage.size();
-		new_U_S1 = newUCoverage.size();
-
-		double expectedRatio = AWeight / (AWeight + BWeight);
-
-		double originalQuality = Math.abs(AWeight * A_S1 - BWeight * B_S1) // difference bet. percentages [0..100]
-				- Math.abs(gSpan.skewnessImportance * expectedRatio - UWeight * U_S1) // [0..skewnessImportance/2];
-		;
-		double newQuality = Math.abs(AWeight * new_A_S1 - BWeight * new_B_S1) // difference bet. percentages [0..100]
-				- Math.abs(gSpan.skewnessImportance * expectedRatio - UWeight * new_U_S1) // [0..skewnessImportance/2];
-		;
-
-		return newQuality - originalQuality;
-
-	}
+	
 
 //	public static double upperBound(double q_s, int A_S0, int A_S1, int B_S0, int B_S1, int U_S0, int U_S1,  double AWeight,
 //			double BWeight, double UWeight) {
@@ -153,7 +109,7 @@ public class CountingUtils {
 //	}
 
 	public enum UpperBoundReturnType {
-		BAD, BAD_EXPLORE, GOOD, GOOD_EXPLORE;
+		BAD, GOOD;
 	}
 
 	public static UpperBoundReturnType upperBound(double current, int A_S0, int A_S1, int B_S0, int B_S1, int U_S0,
@@ -162,7 +118,8 @@ public class CountingUtils {
 		if (A_S1 == 0 && B_S1 == 0) {
 			return UpperBoundReturnType.BAD;
 		}
-
+		
+		
 		ChiSquareTest test = new ChiSquareTest();
 
 		long[][] currentCounts = { { A_S1, A_S0 }, { B_S1, B_S0 } };
@@ -181,47 +138,18 @@ public class CountingUtils {
 		}
 
 		if (bestPValue1 > 0.1 && bestPValue2 > 0.1) { // best case still bad
-//			System.out.println("\tBest case still bad. Current p-value=" + currentPValue);
-//			System.out.println("\t\t A_S0=" + A_S0 + " , A_S1=" + A_S1);
-//			System.out.println("\t\t" + "B_S0=" + B_S0 + " , B_S1=" + B_S1);
-//			System.out.println("\t\tp values can become, at best, " + bestPValue1 + " or " + bestPValue2);
 
-			// but maybe getting more data can help?
-			// especially for subgraphs that are indicative of the minority case
-			// this is getting pruned, but we should see what graphs contain this subgraph
-			if (BWeight * B_S1 >= AWeight * A_S1 && currentPValue > 0.05 && currentPValue < 0.10) {
-//			if (currentPValue > 0.05 && currentPValue < 0.10) {
-//				System.out.println("\tPruning but ask for more labels");
-				return UpperBoundReturnType.BAD_EXPLORE;
-			} else {
-				return UpperBoundReturnType.BAD;
-			}
+			return UpperBoundReturnType.BAD;
+			
 		} else if (fuzzyEquals(Math.min(bestPValue1, bestPValue2), currentPValue, 0.0005)) {
-//			System.out.println("\tCan't do better. Current p-value=" + currentPValue);
-//			System.out.println("\t\tGiven A_S0=" + A_S0 + " , A_S1=" + A_S1);
-//			System.out.println("\t\t" + "B_S0=" + B_S0 + " , B_S1=" + B_S1);
-//			System.out.println("\tGiven that we cna't do better, pruning");
 
-			// but maybe getting more data can help?
-			// especially for subgraphs that are indicative of the minority case
-			// this is getting pruned, but we should see what graphs contain this subgraph
-			if (BWeight * B_S1 >= AWeight * A_S1 && currentPValue > 0.05 && currentPValue < 0.10) {
-//			if (currentPValue > 0.05 && currentPValue < 0.10 ) {
-//				System.out.println("\tPruning but ask for more labels");
-				return UpperBoundReturnType.BAD_EXPLORE;
-			} else {
-				return UpperBoundReturnType.BAD;
-			}
+
+			return UpperBoundReturnType.BAD;
+			
 		} else {
-			if (BWeight * B_S1 >= AWeight * A_S1 && currentPValue > 0.05 && currentPValue < 0.10) {
-//				System.out
-//						.println("\tNot pruning, but should remember to ask for more labels. p-value=" + currentPValue);
-//				System.out.println("\t\tRemmeber to ask for more: A_S0=" + A_S0 + " , A_S1=" + A_S1);
-//				System.out.println("\t\tRemmeber to ask for more: B_S0=" + B_S0 + " , B_S1=" + B_S1);
-				return UpperBoundReturnType.GOOD_EXPLORE;
-			} else {
-				return UpperBoundReturnType.GOOD;
-			}
+		
+			return UpperBoundReturnType.GOOD;
+		
 
 		}
 	}
@@ -493,11 +421,11 @@ public class CountingUtils {
 		int repeatCorrect;
 		if (numCorrect > numMisuses) {
 			repeatCorrect = 1;
-			repeatMisuses = Math.toIntExact(Math.round(Math.ceil((float) numCorrect / numMisuses)));
+			repeatMisuses = Math.toIntExact(Math.round(Math.ceil((float) numCorrect / Math.max(1, numMisuses) )));
 //			repeatMisuses = 1;
 		} else {
 			repeatMisuses = 1;
-			repeatCorrect = Math.toIntExact(Math.round(Math.floor((float) numMisuses / numCorrect)));
+			repeatCorrect = Math.toIntExact(Math.round(Math.floor((float) numMisuses / Math.max(1, numCorrect))));
 //			repeatCorrect = 1;
 		}
 

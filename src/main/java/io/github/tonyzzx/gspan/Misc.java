@@ -37,11 +37,11 @@ public class Misc {
 				continue;
 			
 			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
-			int toNodeLabel = graph.get(it.to).label;
-			if (singleVertexLabel.get(toNodeLabel) < minSup) {
-//				System.out.println("skip due to low-support value");
-				continue;
-			}
+//			int toNodeLabel = graph.get(it.to).label;
+//			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+////				System.out.println("skip due to low-support value");
+//				continue;
+//			}
 
 			if ((it.to == e1.from) && ((e1.eLabel < it.eLabel)
 					|| (e1.eLabel == it.eLabel) && (graph.get(e1.to).label <= graph.get(e2.to).label))) {
@@ -66,12 +66,12 @@ public class Misc {
 			if (minLabel > graph.get(it.to).label || history.hasVertex(it.to))
 				continue;
 
-			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
-			int toNodeLabel = graph.get(it.to).label;
-			if (singleVertexLabel.get(toNodeLabel) < minSup) {
-//				System.out.println("skip due to low-support value");
-				continue;
-			}
+//			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
+//			int toNodeLabel = graph.get(it.to).label;
+//			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+////				System.out.println("skip due to low-support value");
+//				continue;
+//			}
 
 			result.add(it);
 		}
@@ -92,11 +92,11 @@ public class Misc {
 				continue;
 
 			// HJ: if the `to node` isn't even frequent, we don't have to consider this edge
-			int toNodeLabel = graph.get(it.to).label;
-			if (singleVertexLabel.get(toNodeLabel) < minSup) {
-//				System.out.println("skip due to low-support value");
-				continue;
-			}
+//			int toNodeLabel = graph.get(it.to).label;
+//			if (singleVertexLabel.get(toNodeLabel) < minSup) {
+////				System.out.println("skip due to low-support value");
+//				continue;
+//			}
 
 			if (e.eLabel < it.eLabel || (e.eLabel == it.eLabel && toLabel <= toLabel2))
 				result.add(it);

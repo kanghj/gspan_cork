@@ -7,9 +7,10 @@ import java.util.*;
 
 public class Graph extends ArrayList<Vertex> {
     private static final long serialVersionUID = 1L;
-	private static Set<Integer> boringEdges = new HashSet<>(Arrays.asList(1, 4, 7)); // "def" and "recv", "rep"
+	private static Set<Integer> boringEdges = new HashSet<>(); // new HashSet<>(Arrays.asList(1, 4, 7)); // "def" and "recv", "rep"
 	
 	
+	public static long mustIncludeNode = -1; // init in Main.main(String[])
 	public static List<Integer> boringNodes; // init in Main.main(String[])
 	
     public int edge_size = 0;
@@ -66,12 +67,13 @@ public class Graph extends ArrayList<Vertex> {
             Collections.addAll(result, splitRead);
 
             if (!result.isEmpty()) {
-            	if (result.get(0).equals("-")) {
-            		if (!this.isEmpty()) {
-                        break;
-                    } else {
-                    	throw new RuntimeException("Unexpected file format");
-                    }
+            	if (result.get(0).equals("-")) { // delimiter
+//            		if (!this.isEmpty()) {
+//                        break;
+//                    } else {
+//                    	throw new RuntimeException("Unexpected file format");
+//                    }
+            		break;
             	} else if (result.get(0).equals("t")) {
             		
             		String supposedID = result.get(2);
@@ -81,7 +83,7 @@ public class Graph extends ArrayList<Vertex> {
                     // 'U' for unlabeled
                     // 'M' for misuse
                     // 'C' for correct
-                    assert label == 'U' || label == 'M' || label == 'C';
+                    assert label == 'U' || label == '+' || label == '-';
                     this.label = label;
                     
                     int howMany = Integer.parseInt(result.get(4));
@@ -189,6 +191,22 @@ public class Graph extends ArrayList<Vertex> {
                     
         }
     	return result;
+    }
+    
+    public boolean containsMustIncludeNode() {
+    	if (mustIncludeNode == -1) {
+    		return true;
+    	}
+
+    	for (int from = 0; from < size(); ++from) {
+//    		System.out.println("matching... mustIncludeNode = " + mustIncludeNode + " but label is  " + this.get(from).label );
+    		if (this.get(from).label == (int)mustIncludeNode) {
+//    			System.out.println("matched mustIncludeNode");
+    			return true;
+    		}
+    	}
+    	
+    	return false;
     }
 
     public void check() {

@@ -4,8 +4,6 @@ import org.apache.commons.cli.*;
 
 import io.github.tonyzzx.gspan.model.Graph;
 import smu.hongjin.CountingUtils;
-import smu.hongjin.ExcludeBoringNodes;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
@@ -34,8 +32,8 @@ public class Main {
 		File inFile = new File(arguments.inFilePath);
 		
 		//
-		ExcludeBoringNodes.pathToVertMap = arguments.boringNodePath;
-		Graph.boringNodes = ExcludeBoringNodes.IdsOfBoringNodes();
+		Graph.boringNodes = Collections.emptyList(); // ExcludeBoringNodes.IdsOfBoringNodes();
+		Graph.mustIncludeNode = arguments.mustIncludeNode;
 		//
 		
 		
@@ -75,8 +73,7 @@ public class Main {
 		Set<Long> weakSubgraphFeatures = new HashSet<>();
 		
 		// the worst CORK value is when all the misuses and correct uses cannot be disambiguated.
-		int previousCorkScore = gSpan.totalCorrectUses * gSpan.totalMisuses;// Integer.MAX_VALUE;
-		System.out.println("worst score : " + previousCorkScore);
+		int previousCorkScore = gSpan.totalCorrectUses * gSpan.totalMisuses;
 		for (Map.Entry<Long, Double> entry : sortedSubgraphFeatures.entrySet()) {
 			Long featureId = entry.getKey();
 
@@ -89,9 +86,7 @@ public class Main {
 			// see if the number of graphs that cannot be disambiguated has decreased?
 			// if so, the subgraph is not weak
 			// otherwise, drop this subgraph
-			
 			int corkScore = 0;
-			
 			
 			for (int i = 0; i < graphs.size(); i++) {
 				int graph1 = graphs.get(i);
@@ -109,15 +104,15 @@ public class Main {
 					
 					Set<Long> intersection = new HashSet<>(graphsToFeaturesContained.get(graph2));
 					intersection.retainAll(features1);
-					
-					if (intersection.size() == features1.size()) { // cannot disambiguate
+
+					if (intersection.size() == features1.size() && intersection.size() == graphsToFeaturesContained.get(graph2).size()) { // cannot disambiguate
 						corkScore += 1;
 					}
 				}
 			}
 			
 			boolean isWeak = true;
-			if (corkScore < previousCorkScore - 1) {
+			if (corkScore <= previousCorkScore - 1) {
 				isWeak = false;
 			}
 			previousCorkScore = corkScore;
@@ -133,23 +128,34 @@ public class Main {
 			}
 		}
 
-		// remove the lame features
 		for (long weakFeature : weakSubgraphFeatures) {
 			gSpan.selectedSubgraphFeatures.remove(weakFeature);
 			gSpan.coverage.remove(weakFeature);
 		}
+//		System.out.println("all features = " + sortedSubgraphFeatures.size());
+//		System.out.println("removed features = " + weakSubgraphFeatures.size());
 
 		try (BufferedWriter selectedSubGraphWriter = new BufferedWriter(
 				new FileWriter(arguments.outFilePath + "_best_subgraphs.txt"))) {
 			for (Map.Entry<Long, Double> subgraphFeature : sortedSubgraphFeatures.entrySet()) {
 				if (!gSpan.coverage.containsKey(subgraphFeature.getKey())) {
 					if (!weakSubgraphFeatures.contains(subgraphFeature.getKey())) {
-						throw new RuntimeException("huhhh");
+						throw new RuntimeException("Odd. Removed subgraph was not recorded");
 					}
-					continue; // we have removed this weak feature
+					continue; 
 				}
 				selectedSubGraphWriter.write(subgraphFeature.getKey() + "," + subgraphFeature.getValue());
 				selectedSubGraphWriter.write("\n");
+			}
+		}
+		
+		try (BufferedWriter selectedSubGraphWriter = new BufferedWriter(
+				new FileWriter(arguments.outFilePath + "_alternative_subgraphs.txt"))) {
+			for (Map.Entry<Long, Double> subgraphFeature : sortedSubgraphFeatures.entrySet()) {
+				if (weakSubgraphFeatures.contains(subgraphFeature.getKey())) {
+					selectedSubGraphWriter.write(subgraphFeature.getKey() + "," + subgraphFeature.getValue());
+					selectedSubGraphWriter.write("\n");
+				}
 			}
 		}
 
@@ -162,16 +168,10 @@ public class Main {
 		}
 		System.out.println("The feature vectors of labeled graphs are in " + arguments.outFilePath + "_features.txt");
 
-//		try (BufferedWriter featuresWriter = new BufferedWriter(
-//				new FileWriter(arguments.outFilePath + "_unlabelled_features.txt"))) {
-//			CountingUtils.writeUnlabelledGraphFeatures(gSpan, gSpan.coverage, gSpan.unlabeledCoverage, featuresWriter);
-//		}
-//		System.out.println(
-//				"The feature vectors of unlabeled graphs are in " + arguments.outFilePath + "_unlabelled_features.txt");
 
 		// find new examples to label
-		System.out.println("Computing which unlabeled graphs were not covered");
-		System.out.println("\tand which labeled graphs were not covered");
+//		System.out.println("Computing which unlabeled graphs were not covered");
+//		System.out.println("\tand which labeled graphs were not covered");
 
 		for (Long feature : gSpan.selectedSubgraphFeatures.keySet()) {
 			Set<Integer> coveredGraphs = gSpan.unlabeledCoverage.get(feature);
@@ -179,10 +179,10 @@ public class Main {
 
 		}	
 	
-		writeClingo(arguments, gSpan);
+//		writeClingo(arguments, gSpan);
 
-		System.out.println("The IDs of the uncovered methods have been written to " + arguments.outFilePath
-				+ "_interesting_unlabeled.txt");
+//		System.out.println("The IDs of the uncovered methods have been written to " + arguments.outFilePath
+//				+ "_interesting_unlabeled.txt");
 		System.out.println("The prefixes of the files we care about are " + arguments.outFilePath);
 	}
 
@@ -233,7 +233,6 @@ public class Main {
 			}
 			List<Long> top = countsOfSubgraphs.entrySet().stream()
 				.sorted(Entry.comparingByValue(Comparator.reverseOrder()))
-//				.limit(countsOfSubgraphs.entrySet().size() / 2) 	// 
 				.map(entry -> entry.getKey())
 				.collect(Collectors.toList());
 			
@@ -274,7 +273,7 @@ public class Main {
 
 		String inFilePath;
 		
-		String boringNodePath;
+		long mustIncludeNode = -1;
 		
 		long minSup;
 		long minNodeNum = 0;
@@ -302,7 +301,7 @@ public class Main {
 			Options options = new Options();
 			options.addRequiredOption("d", "data", true, "(Required) File path of data set");
 			options.addRequiredOption("s", "sup", true, "(Required) Minimum support");
-			options.addOption("b", "boring", true, "Boring Nodes path");
+			options.addOption("m", "must-include", true, "which node must be included");
 			options.addOption("i", "min-node", true, "Minimum number of nodes for each sub-graph");
 			options.addOption("a", "max-node", true, "Maximum number of nodes for each sub-graph");
 			options.addOption("r", "result", true, "File path of result");
@@ -323,7 +322,11 @@ public class Main {
 			}
 
 			inFilePath = cmd.getOptionValue("d");
-			boringNodePath = cmd.getOptionValue("b");
+			if (cmd.hasOption("m")) {
+				mustIncludeNode = Long.parseLong(cmd.getOptionValue("m"));
+			} else {
+				mustIncludeNode = -1;
+			}
 			minSup = Long.parseLong(cmd.getOptionValue("s"));
 			minNodeNum = Long.parseLong(cmd.getOptionValue("i", "0"));
 			maxNodeNum = Long.parseLong(cmd.getOptionValue("a", String.valueOf(Long.MAX_VALUE)));
